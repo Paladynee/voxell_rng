@@ -1,5 +1,13 @@
 # Cheap and dirty RNGs
 
+```rust
+let mut rng = TimeSeededXorShift32::generate().unwrap();
+rng.next_u32();
+rng.next_u32();
+rng.next_u32();
+rng.next_u32();
+```
+
 Use this crate if you need simple random number generators for your project
 and you don't want to depend on a big library like `rand`.
 
