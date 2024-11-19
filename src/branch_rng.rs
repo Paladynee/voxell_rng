@@ -9,15 +9,17 @@ pub trait BranchRng<T> {
     fn branch_rng(&mut self) -> T;
 }
 
-impl BranchRng<SplitMix64> for SplitMix64 {
-    fn branch_rng(&mut self) -> SplitMix64 {
+impl BranchRng<Self> for SplitMix64 {
+    #[inline]
+    fn branch_rng(&mut self) -> Self {
         let seed = self.mix().wrapping_add(1);
-        SplitMix64::wrap(seed)
+        Self::wrap(seed)
     }
 }
 
-impl BranchRng<XoRoShiRo128Plus> for XoRoShiRo128Plus {
-    fn branch_rng(&mut self) -> XoRoShiRo128Plus {
+impl BranchRng<Self> for XoRoShiRo128Plus {
+    #[inline]
+    fn branch_rng(&mut self) -> Self {
         let mut other = self.clone();
         other.long_jump();
         mem::swap(self, &mut other);
@@ -25,9 +27,14 @@ impl BranchRng<XoRoShiRo128Plus> for XoRoShiRo128Plus {
     }
 }
 
-impl BranchRng<XorShift32> for XorShift32 {
-    fn branch_rng(&mut self) -> XorShift32 {
+impl BranchRng<Self> for XorShift32 {
+    #[inline]
+    fn branch_rng(&mut self) -> Self {
         let seed = self.next_u32().wrapping_add(1);
-        XorShift32::wrap(seed)
+        if seed == 0 {
+            Self::wrap(1)
+        } else {
+            Self::wrap(seed)
+        }
     }
 }
