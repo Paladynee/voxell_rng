@@ -8,16 +8,27 @@
 
 use core::ptr;
 
+use crate::branch_rng::BranchRng;
+
+#[derive(Clone, PartialEq, Eq)]
 pub struct Pcg64 {
     state: PcgInnerState64,
 }
 
+impl BranchRng<Self> for Pcg64 {
+    #[inline]
+    fn branch_rng(&mut self) -> Self {
+        let mut oldstate = self.state.clone();
+        PcgInnerState64::oneseq_advance(&mut oldstate, 1);
+        Self { state: oldstate }
+    }
+}
+
 impl Pcg64 {
     #[inline]
+    #[must_use]
     pub fn new(seed: u64) -> Self {
-        let mut state = PcgInnerState64 { state: 0 };
-        PcgInnerState64::unique_seeded(&mut state, seed);
-
+        let state = PcgInnerState64::unique_seeded(seed);
         Self { state }
     }
 
@@ -27,10 +38,12 @@ impl Pcg64 {
     }
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct PcgInnerState64 {
     state: u64,
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct PcgInnerStateSetseq64 {
     state: u64,
     inc: u64,
@@ -44,6 +57,12 @@ const PCG64_MCG_INIT: u64 = 0xcafef00dd15ea5e5;
 const PCG64_SETSEQ_INIT: [u64; 2] = [0x853c49e6748fea9b, 0xda3e39cb94b95bdb];
 
 impl PcgInnerState64 {
+    #[inline]
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self { state: 0 }
+    }
+
     #[inline]
     pub const fn oneseq_step(&mut self) {
         self.state = self
@@ -86,24 +105,31 @@ impl PcgInnerState64 {
     }
 
     #[inline]
-    pub const fn oneseq_seeded(&mut self, initstate: u64) {
-        self.state = 0;
-        Self::oneseq_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::oneseq_step(self);
+    #[must_use]
+    pub const fn oneseq_seeded(initstate: u64) -> Self {
+        let mut pcg = Self::zeroed();
+        Self::oneseq_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::oneseq_step(&mut pcg);
+        pcg
     }
 
     #[inline]
-    pub const fn mcg_seeded(&mut self, initstate: u64) {
-        self.state = initstate | 1;
+    #[must_use]
+    pub const fn mcg_seeded(initstate: u64) -> Self {
+        let mut pcg = Self::zeroed();
+        pcg.state = initstate | 1;
+        pcg
     }
 
     #[inline]
-    pub fn unique_seeded(&mut self, initstate: u64) {
-        self.state = 0;
-        Self::unique_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::oneseq_step(self);
+    #[must_use]
+    pub fn unique_seeded(initstate: u64) -> Self {
+        let mut pcg = Self::zeroed();
+        Self::unique_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::oneseq_step(&mut pcg);
+        pcg
     }
 
     #[inline]
@@ -343,6 +369,12 @@ impl PcgInnerState64 {
 
 impl PcgInnerStateSetseq64 {
     #[inline]
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self { state: 0, inc: 0 }
+    }
+
+    #[inline]
     pub const fn setseq_step(&mut self) {
         self.state = self
             .state
@@ -356,12 +388,14 @@ impl PcgInnerStateSetseq64 {
     }
 
     #[inline]
-    pub const fn setseq_seeded(&mut self, initstate: u64, initseq: u64) {
-        self.state = 0;
-        self.inc = (initseq << 1) | 1;
-        Self::setseq_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::setseq_step(self);
+    #[must_use]
+    pub const fn setseq_seeded(initstate: u64, initseq: u64) -> Self {
+        let mut pcg = Self::zeroed();
+        pcg.inc = (initseq << 1) | 1;
+        Self::setseq_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::setseq_step(&mut pcg);
+        pcg
     }
 
     #[inline]
@@ -456,12 +490,14 @@ impl PcgInnerStateSetseq64 {
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg64_xsh_rs(state: u64) -> u32 {
     let res = ((state >> 22) ^ state) >> ((state >> 61).wrapping_add(22));
     res as u32
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg64_advance_lcg(
     state: u64,
     mut delta: u64,
@@ -483,16 +519,19 @@ pub const fn pcg64_advance_lcg(
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg64_xsh_rr(state: u64) -> u32 {
     rotr32((((state >> 18) ^ state) >> 27) as u32, (state >> 59) as u32)
 }
 
 #[inline]
+#[must_use]
 pub const fn rotr32(value: u32, rot: u32) -> u32 {
     value.rotate_right(rot)
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg64_rxs_m_xs(state: u64) -> u64 {
     let word =
         ((state >> ((state >> 59).wrapping_add(5))) ^ state).wrapping_mul(12605985483714917081);
@@ -500,11 +539,13 @@ pub const fn pcg64_rxs_m_xs(state: u64) -> u64 {
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg64_xsl_rr(state: u64) -> u32 {
     rotr32(((state >> 32) as u32) ^ state as u32, (state >> 59) as u32)
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg64_xsl_rr_rr(state: u64) -> u64 {
     let rot1 = (state >> 59) as u32;
     let high = (state >> 32) as u32;

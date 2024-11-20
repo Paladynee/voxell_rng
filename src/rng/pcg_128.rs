@@ -8,16 +8,27 @@
 
 use core::ptr;
 
+use crate::branch_rng::BranchRng;
+
+#[derive(Clone, PartialEq, Eq)]
 pub struct Pcg128 {
     state: PcgInnerState128,
 }
 
+impl BranchRng<Self> for Pcg128 {
+    #[inline]
+    fn branch_rng(&mut self) -> Self {
+        let mut oldstate = self.state.clone();
+        PcgInnerState128::oneseq_advance(&mut oldstate, 1);
+        Self { state: oldstate }
+    }
+}
+
 impl Pcg128 {
     #[inline]
+    #[must_use]
     pub fn new(seed: u128) -> Self {
-        let mut state = PcgInnerState128 { state: 0 };
-        PcgInnerState128::unique_seeded(&mut state, seed);
-
+        let state = PcgInnerState128::unique_seeded(seed);
         Self { state }
     }
 
@@ -26,10 +37,13 @@ impl Pcg128 {
         self.state.unique_rxs_m_xs()
     }
 }
+
+#[derive(Clone, PartialEq, Eq)]
 pub struct PcgInnerState128 {
     state: u128,
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct PcgInnerStateSetseq128 {
     state: u128,
     inc: u128,
@@ -46,6 +60,12 @@ const PCG_STATE_SETSEQ_128_INITIALIZER: [u128; 2] = [
 ];
 
 impl PcgInnerState128 {
+    #[inline]
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self { state: 0 }
+    }
+
     #[inline]
     pub const fn oneseq_step(&mut self) {
         self.state = self
@@ -93,24 +113,31 @@ impl PcgInnerState128 {
     }
 
     #[inline]
-    pub const fn oneseq_seeded(&mut self, initstate: u128) {
-        self.state = 0;
-        Self::oneseq_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::oneseq_step(self);
+    #[must_use]
+    pub const fn oneseq_seeded(initstate: u128) -> Self {
+        let mut pcg = Self::zeroed();
+        Self::oneseq_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::oneseq_step(&mut pcg);
+        pcg
     }
 
     #[inline]
-    pub const fn mcg_seeded(&mut self, initstate: u128) {
-        self.state = initstate | 1;
+    #[must_use]
+    pub const fn mcg_seeded(initstate: u128) -> Self {
+        let mut pcg = Self::zeroed();
+        pcg.state = initstate | 1;
+        pcg
     }
 
     #[inline]
-    pub fn unique_seeded(&mut self, initstate: u128) {
-        self.state = 0;
-        Self::unique_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::oneseq_step(self);
+    #[must_use]
+    pub fn unique_seeded(initstate: u128) -> Self {
+        let mut pcg = Self::zeroed();
+        Self::unique_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::oneseq_step(&mut pcg);
+        pcg
     }
 
     #[inline]
@@ -338,6 +365,12 @@ impl PcgInnerState128 {
 
 impl PcgInnerStateSetseq128 {
     #[inline]
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self { state: 0, inc: 0 }
+    }
+
+    #[inline]
     pub const fn setseq_step(&mut self) {
         self.state = self
             .state
@@ -351,12 +384,14 @@ impl PcgInnerStateSetseq128 {
     }
 
     #[inline]
-    pub const fn setseq_seeded(&mut self, initstate: u128, initseq: u128) {
-        self.state = 0;
-        self.inc = (initseq << 1) | 1;
-        Self::setseq_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::setseq_step(self);
+    #[must_use]
+    pub const fn setseq_seeded(initstate: u128, initseq: u128) -> Self {
+        let mut pcg = Self::zeroed();
+        pcg.inc = (initseq << 1) | 1;
+        Self::setseq_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::setseq_step(&mut pcg);
+        pcg
     }
 
     #[inline]
@@ -447,6 +482,7 @@ impl PcgInnerStateSetseq128 {
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg128_xsl_rr_rr(state: u128) -> u128 {
     let rot1 = (state >> 122) as u32;
     let high = (state >> 64) as u64;
@@ -458,16 +494,19 @@ pub const fn pcg128_xsl_rr_rr(state: u128) -> u128 {
 }
 
 #[inline]
+#[must_use]
 pub const fn rotr64(value: u64, rot: u32) -> u64 {
     value.rotate_right(rot)
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg128_xsl_rr(state: u128) -> u64 {
     rotr64(((state >> 64) as u64) ^ state as u64, (state >> 122) as u32)
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg128_rxs_m_xs(state: u128) -> u128 {
     let word = ((state >> ((state >> 122).wrapping_add(6))) ^ state)
         .wrapping_mul(pcg128_const(17766728186571221404, 12605985483714917081));
@@ -475,11 +514,13 @@ pub const fn pcg128_rxs_m_xs(state: u128) -> u128 {
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg128_const(high: u64, low: u64) -> u128 {
     (high as u128) << 64 | (low as u128)
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg128_xsh_rr(state: u128) -> u64 {
     rotr64(
         (((state >> 29) ^ state) >> 58) as u64,
@@ -488,12 +529,14 @@ pub const fn pcg128_xsh_rr(state: u128) -> u64 {
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg128_xsh_rs(state: u128) -> u64 {
     let res = ((state >> 43) ^ state) >> ((state >> 124).wrapping_add(45));
     res as u64
 }
 
 #[inline]
+#[must_use]
 pub const fn pcg128_advance_lcg(
     state: u128,
     mut delta: u128,

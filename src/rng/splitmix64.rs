@@ -1,7 +1,16 @@
+use crate::runtime_seeded::MagicSeed;
+
 /// an RNG engine used for seeding other RNGs
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct SplitMix64 {
     x: u64,
+}
+
+impl Default for SplitMix64 {
+    #[inline]
+    fn default() -> Self {
+        Self::new(MagicSeed::new_magic() as u64)
+    }
 }
 
 impl Iterator for SplitMix64 {

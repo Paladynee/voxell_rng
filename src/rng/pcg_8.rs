@@ -8,16 +8,27 @@
 
 use core::ptr;
 
+use crate::branch_rng::BranchRng;
+
+#[derive(Clone, PartialEq, Eq)]
 pub struct Pcg8 {
     state: PcgInnerState8,
 }
 
+impl BranchRng<Self> for Pcg8 {
+    #[inline]
+    fn branch_rng(&mut self) -> Self {
+        let mut oldstate = self.state.clone();
+        PcgInnerState8::oneseq_advance(&mut oldstate, 1);
+        Self { state: oldstate }
+    }
+}
+
 impl Pcg8 {
     #[inline]
+    #[must_use]
     pub fn new(seed: u8) -> Self {
-        let mut state = PcgInnerState8 { state: 0 };
-        PcgInnerState8::unique_seeded(&mut state, seed);
-
+        let state = PcgInnerState8::unique_seeded(seed);
         Self { state }
     }
 
@@ -27,10 +38,12 @@ impl Pcg8 {
     }
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct PcgInnerState8 {
     state: u8,
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct PcgInnerStateSetseq8 {
     state: u8,
     inc: u8,
@@ -44,6 +57,12 @@ const PCG8_MCG_INIT: u8 = 0xe5;
 const PCG8_SETSEQ_INIT: [u8; 2] = [0x9b, 0xdb];
 
 impl PcgInnerState8 {
+    #[inline]
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self { state: 0 }
+    }
+
     #[inline]
     pub const fn oneseq_step(&mut self) {
         self.state = self
@@ -86,24 +105,31 @@ impl PcgInnerState8 {
     }
 
     #[inline]
-    pub const fn oneseq_seeded(&mut self, initstate: u8) {
-        self.state = 0;
-        Self::oneseq_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::oneseq_step(self);
+    #[must_use]
+    pub const fn oneseq_seeded(initstate: u8) -> Self {
+        let mut pcg = Self::zeroed();
+        Self::oneseq_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::oneseq_step(&mut pcg);
+        pcg
     }
 
     #[inline]
-    pub const fn mcg_seeded(&mut self, initstate: u8) {
-        self.state = initstate | 1;
+    #[must_use]
+    pub const fn mcg_seeded(initstate: u8) -> Self {
+        let mut pcg = Self::zeroed();
+        pcg.state = initstate | 1;
+        pcg
     }
 
     #[inline]
-    pub fn unique_seeded(&mut self, initstate: u8) {
-        self.state = 0;
-        Self::unique_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::unique_step(self);
+    #[must_use]
+    pub fn unique_seeded(initstate: u8) -> Self {
+        let mut pcg = Self::zeroed();
+        Self::unique_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::unique_step(&mut pcg);
+        pcg
     }
 
     #[inline]
@@ -145,6 +171,12 @@ impl PcgInnerState8 {
 
 impl PcgInnerStateSetseq8 {
     #[inline]
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self { state: 0, inc: 0 }
+    }
+
+    #[inline]
     pub const fn setseq_step(&mut self) {
         self.state = self
             .state
@@ -158,12 +190,14 @@ impl PcgInnerStateSetseq8 {
     }
 
     #[inline]
-    pub const fn setseq_seeded(&mut self, initstate: u8, initseq: u8) {
-        self.state = 0;
-        self.inc = (initseq << 1) | 1;
-        Self::setseq_step(self);
-        self.state = self.state.wrapping_add(initstate);
-        Self::setseq_step(self);
+    #[must_use]
+    pub const fn setseq_seeded(initstate: u8, initseq: u8) -> Self {
+        let mut pcg = Self::zeroed();
+        pcg.inc = (initseq << 1) | 1;
+        Self::setseq_step(&mut pcg);
+        pcg.state = pcg.state.wrapping_add(initstate);
+        Self::setseq_step(&mut pcg);
+        pcg
     }
 
     #[inline]

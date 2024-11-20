@@ -1,3 +1,5 @@
+use crate::runtime_seeded::MagicSeed;
+
 use super::SplitMix64;
 
 /// cheap and dirty random numbers
@@ -16,7 +18,7 @@ fn test() {
 impl Default for XorShift32 {
     #[inline]
     fn default() -> Self {
-        Self { x: 0xCAFE_BABE }
+        Self::new(MagicSeed::new_magic() as u64)
     }
 }
 

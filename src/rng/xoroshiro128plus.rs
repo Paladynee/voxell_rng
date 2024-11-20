@@ -1,3 +1,5 @@
+use crate::runtime_seeded::MagicSeed;
+
 use super::SplitMix64;
 
 /// bigger cheap and dirty random numbers
@@ -9,7 +11,7 @@ pub struct XoRoShiRo128Plus {
 impl Default for XoRoShiRo128Plus {
     #[inline]
     fn default() -> Self {
-        Self::new(0)
+        Self::new(MagicSeed::new_magic() as u64)
     }
 }
 
