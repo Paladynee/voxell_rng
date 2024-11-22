@@ -8,6 +8,8 @@
 
 use core::ptr;
 
+use rand_core::RngCore;
+
 use crate::branch_rng::BranchRng;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -34,7 +36,46 @@ impl Pcg8 {
 
     #[inline]
     pub fn next_u8(&mut self) -> u8 {
-        self.state.unique_rxs_m_xs()
+        self.state.oneseq_rxs_m_xs()
+    }
+}
+
+impl RngCore for Pcg8 {
+    #[inline]
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        for byte in dest {
+            *byte = self.next_u8();
+        }
+    }
+
+    #[inline]
+    fn next_u32(&mut self) -> u32 {
+        u32::from_le_bytes([
+            self.next_u8(),
+            self.next_u8(),
+            self.next_u8(),
+            self.next_u8(),
+        ])
+    }
+
+    #[inline]
+    fn next_u64(&mut self) -> u64 {
+        u64::from_le_bytes([
+            self.next_u8(),
+            self.next_u8(),
+            self.next_u8(),
+            self.next_u8(),
+            self.next_u8(),
+            self.next_u8(),
+            self.next_u8(),
+            self.next_u8(),
+        ])
+    }
+
+    #[inline]
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+        self.fill_bytes(dest);
+        Ok(())
     }
 }
 

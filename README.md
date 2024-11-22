@@ -1,6 +1,7 @@
 # Cheap and dirty RNGs
 
 ```rust
+use voxell_rng::prelude::*;
 use voxell_rng::rng::XorShift32;
 // seeds using runtime entropy (no overhead / no syscalls)
 let mut rng = XorShift32::default();
@@ -14,12 +15,20 @@ and you don't want to depend on a big library like `rand`.
 
 You can seed your RNGs using the system time [`voxell_rng::time_seeded`] or runtime entropy [`voxell_rng::runtime_seeded`].
 
-There are 4 RNGs available:
+There are 5 RNGs available:
 
--   [`rng::SplitMix64`]: a 64-bit RNG with 64-bit output used for seeding other RNGs
--   [`rng::XorShift32`]: a 32-bit Xorshift RNG with 32-bit output
--   [`rng::XoRoShiRo128Plus`]: a 128-bit XoRoShiRo RNG with 64-bit output
--   [`rng::Pcg8`] through [`rng::Pcg128`]: the PCG family of RNGs
+-   [`SplitMix64`]: a 64-bit RNG with 64-bit output used for seeding other RNGs
+-   [`XorShift32`]: a 32-bit Xorshift RNG with 32-bit output
+-   [`XorShift128`]: a 128-bit Xorshift RNG with 64-bit output
+-   [`XoRoShiRo128`]: a 128-bit XoRoShiRo RNG with 64-bit output
+-   [`Pcg8`] through [`Pcg128`]: the PCG family of RNGs
+
+[`SplitMix64`]: crate::rng::SplitMix64
+[`XorShift32`]: crate::rng::XorShift32
+[`XorShift128`]: crate::rng::XorShift128
+[`XoRoShiRo128`]: crate::rng::XoRoShiRo128
+[`Pcg8`]: crate::rng::Pcg8
+[`Pcg128`]: crate::rng::Pcg128
 
 All RNGs implement `BranchRng` which is a simple trait that provides a `branch_rng` method
 for creating a new divergent RNG from the current one. The resulting RNG will have a different
@@ -61,10 +70,10 @@ rng2.next_f32();
 4. Create new RNGs from a master RNG for divergent thread local RNGs:
 
 ```rust
-use voxell_rng::branch_rng::BranchRng;
-use voxell_rng::rng::XoRoShiRo128Plus;
+use voxell_rng::prelude::*;
+use voxell_rng::rng::XoRoShiRo128;
 
-let mut master_rng = XoRoShiRo128Plus::new(0xabad1dea as u64);
+let mut master_rng = XoRoShiRo128::new(0xabad1dea as u64);
 let thread_handles = (0..16)
     .map(|_| {
         let rng = master_rng.branch_rng();

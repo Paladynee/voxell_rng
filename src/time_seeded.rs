@@ -1,4 +1,4 @@
-use crate::rng::{SplitMix64, XoRoShiRo128Plus, XorShift32};
+use crate::rng::{SplitMix64, XoRoShiRo128, XorShift32};
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 
 /// uses the system time to seed an `XorShift32`
@@ -55,11 +55,11 @@ impl TimeSeededXoRoShiRo128Plus {
     /// This function will return an error if the system time cannot be obtained.
     #[inline]
     #[expect(clippy::cast_possible_truncation)]
-    pub fn generate() -> Result<XoRoShiRo128Plus, SystemTimeError> {
+    pub fn generate() -> Result<XoRoShiRo128, SystemTimeError> {
         let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let mut temp_splitmix = SplitMix64::wrap(current_time as u64);
         let seed = [temp_splitmix.mix(), temp_splitmix.mix()];
 
-        Ok(XoRoShiRo128Plus::wrap(seed))
+        Ok(XoRoShiRo128::wrap(seed))
     }
 }

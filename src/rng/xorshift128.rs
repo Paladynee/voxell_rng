@@ -3,18 +3,11 @@ use rand_core::RngCore;
 
 /// cheap and dirty random numbers
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct XorShift32 {
-    x: u32,
+pub struct XorShift128 {
+    state: [u64; 2],
 }
 
-#[cfg(test)]
-#[test]
-fn test() {
-    let rng = XorShift32::new(14123);
-    let _: Vec<_> = rng.take(1034).collect();
-}
-
-impl Iterator for XorShift32 {
+impl Iterator for XorShift128 {
     type Item = u32;
 
     #[inline]
@@ -26,32 +19,32 @@ impl Iterator for XorShift32 {
     }
 }
 
-impl RngCore for XorShift32 {
+impl RngCore for XorShift128 {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        let mut chunksmut = dest.chunks_exact_mut(4);
+        let mut chunksmut = dest.chunks_exact_mut(8);
         for chunk in chunksmut.by_ref() {
-            let next = self.next_u32();
+            let next = self.next_u64();
             let bytes = next.to_le_bytes();
             chunk.copy_from_slice(&bytes);
         }
         let a = chunksmut.into_remainder();
         if !a.is_empty() {
-            let next = self.next_u32();
+            let next = self.next_u64();
             let bytes = next.to_le_bytes();
             a.copy_from_slice(&bytes[0..a.len()]);
         }
     }
 
     #[inline]
+    #[expect(clippy::cast_possible_truncation)]
     fn next_u32(&mut self) -> u32 {
-        self.x = Self::step(self.x);
-        self.x
+        self.next_u64() as u32
     }
 
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        (u64::from(self.next_u32())) << 32 | u64::from(self.next_u32())
+        Self::step(&mut self.state)
     }
 
     #[inline]
@@ -61,21 +54,25 @@ impl RngCore for XorShift32 {
     }
 }
 
-impl From<u32> for XorShift32 {
+impl From<[u64; 2]> for XorShift128 {
+    /// warning! this will [`wrap`] the value
+    ///
+    /// [`wrap`]: XorShift128::wrap
+    ///
+    /// wrapping a 0 value will cause the RNG to always yield 0!
     #[inline]
-    fn from(seed: u32) -> Self {
+    fn from(seed: [u64; 2]) -> Self {
         Self::wrap(seed)
     }
 }
 
-impl XorShift32 {
+impl XorShift128 {
     /// seed the RNG using a `SplitMix64` RNG
     #[inline]
     #[must_use]
-    #[expect(clippy::cast_possible_truncation)]
     pub const fn new(seed: u64) -> Self {
         let mut smx = SplitMix64::wrap(seed);
-        Self::wrap(smx.mix() as u32)
+        Self::wrap([smx.mix(), smx.mix()])
     }
 
     /// wrap a value directly into the RNG
@@ -83,9 +80,8 @@ impl XorShift32 {
     /// recommended to use `seed_using_splitmix` instead as it will handle 0 seeds
     #[inline]
     #[must_use]
-    pub const fn wrap(seed: u32) -> Self {
-        debug_assert!(seed != 0, "XorShift32 cannot be seeded with 0");
-        Self { x: seed }
+    pub const fn wrap(seed: [u64; 2]) -> Self {
+        Self { state: seed }
     }
 
     /// the resulting f32 will be between `[0, 1)`
@@ -96,25 +92,35 @@ impl XorShift32 {
         self.next_u32() as f32 / u32::MAX as f32
     }
 
-    /// This will not modify the internal state of the RNG.
-    /// It will simply return the next random number in the sequence.
-    #[inline]
-    pub const fn peek_next_u32(&mut self) -> u32 {
-        Self::step(self.x)
-    }
-
     /// get the internal state of the RNG without mutating it
     #[inline]
     #[must_use]
-    pub const fn get_current_state(&self) -> u32 {
-        self.x
+    pub const fn get_current_state(&self) -> [u64; 2] {
+        self.state
+    }
+
+    /// This will not modify the internal state of the RNG.
+    /// It will simply return the next random number in the sequence.
+    #[inline]
+    #[must_use]
+    pub const fn peek_next_u64(&self) -> u64 {
+        let mut t = self.state[0];
+        let s = self.state[1];
+        t ^= t << 23;
+        t ^= t >> 18;
+        t ^= s ^ (s >> 5);
+        t.wrapping_add(s)
     }
 
     #[inline]
-    const fn step(mut x: u32) -> u32 {
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        x
+    const fn step(x: &mut [u64; 2]) -> u64 {
+        let mut t = x[0];
+        let s = x[1];
+        x[0] = s;
+        t ^= t << 23;
+        t ^= t >> 18;
+        t ^= s ^ (s >> 5);
+        x[1] = t;
+        t.wrapping_add(s)
     }
 }

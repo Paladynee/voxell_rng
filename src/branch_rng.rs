@@ -1,5 +1,6 @@
-use crate::rng::{SplitMix64, XoRoShiRo128Plus, XorShift32};
+use crate::rng::{SplitMix64, XoRoShiRo128, XorShift32};
 use core::mem;
+use rand_core::RngCore;
 
 /// Trait for branching RNGs.
 pub trait BranchRng<T> {
@@ -17,7 +18,7 @@ impl BranchRng<Self> for SplitMix64 {
     }
 }
 
-impl BranchRng<Self> for XoRoShiRo128Plus {
+impl BranchRng<Self> for XoRoShiRo128 {
     #[inline]
     fn branch_rng(&mut self) -> Self {
         let mut other = self.clone();

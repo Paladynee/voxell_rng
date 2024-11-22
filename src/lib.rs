@@ -44,14 +44,26 @@ pub mod rng {
     }
 
     mod splitmix64;
-    mod xoroshiro128plus;
+    mod xoroshiro128;
+    mod xorshift128;
     mod xorshift32;
 
     pub use splitmix64::SplitMix64;
-    pub use xoroshiro128plus::XoRoShiRo128Plus;
+    pub use xoroshiro128::XoRoShiRo128;
+    pub use xorshift128::XorShift128;
     pub use xorshift32::XorShift32;
 }
 /// Seed RNGs in runtime using dark arts
 pub mod runtime_seeded;
+/// Methods on slices that require randomness
+pub mod slice_methods;
 /// Seed RNGs using the system time
 pub mod time_seeded;
+
+/// prelude
+pub mod prelude {
+    pub use crate::branch_rng::BranchRng;
+    pub use crate::rng::XorShift128;
+    pub use crate::slice_methods::Shuffle;
+    pub use rand_core::RngCore;
+}

@@ -8,6 +8,8 @@
 
 use core::ptr;
 
+use rand_core::RngCore;
+
 use crate::branch_rng::BranchRng;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -34,7 +36,43 @@ impl Pcg128 {
 
     #[inline]
     pub fn next_u128(&mut self) -> u128 {
-        self.state.unique_rxs_m_xs()
+        self.state.oneseq_rxs_m_xs()
+    }
+}
+
+impl RngCore for Pcg128 {
+    #[inline]
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        let mut chunksmut = dest.chunks_exact_mut(16);
+        for chunk in chunksmut.by_ref() {
+            let next = self.next_u128();
+            let bytes = next.to_le_bytes();
+            chunk.copy_from_slice(&bytes);
+        }
+        let a = chunksmut.into_remainder();
+        if !a.is_empty() {
+            let next = self.next_u128();
+            let bytes = next.to_le_bytes();
+            a.copy_from_slice(&bytes[0..a.len()]);
+        }
+    }
+
+    #[inline]
+    #[expect(clippy::cast_possible_truncation)]
+    fn next_u32(&mut self) -> u32 {
+        // TODO: use output functions that dont use the entire inner state
+        self.next_u128() as u32
+    }
+    #[inline]
+    fn next_u64(&mut self) -> u64 {
+        // TODO: use output functions that dont use the entire inner state
+        self.next_u128() as u64
+    }
+
+    #[inline]
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+        self.fill_bytes(dest);
+        Ok(())
     }
 }
 
@@ -136,7 +174,7 @@ impl PcgInnerState128 {
         let mut pcg = Self::zeroed();
         Self::unique_step(&mut pcg);
         pcg.state = pcg.state.wrapping_add(initstate);
-        Self::oneseq_step(&mut pcg);
+        Self::unique_step(&mut pcg);
         pcg
     }
 

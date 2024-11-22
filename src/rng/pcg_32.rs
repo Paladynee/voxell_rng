@@ -8,6 +8,8 @@
 
 use core::ptr;
 
+use rand_core::RngCore;
+
 use crate::branch_rng::BranchRng;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -25,8 +27,42 @@ impl Pcg32 {
     }
 
     #[inline]
-    pub fn next_u32(&mut self) -> u32 {
-        self.state.unique_rxs_m_xs()
+    pub fn step(&mut self) -> u32 {
+        self.state.oneseq_rxs_m_xs()
+    }
+}
+
+impl RngCore for Pcg32 {
+    #[inline]
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        let mut chunksmut = dest.chunks_exact_mut(4);
+        for chunk in chunksmut.by_ref() {
+            let next = self.next_u32();
+            let bytes = next.to_le_bytes();
+            chunk.copy_from_slice(&bytes);
+        }
+        let a = chunksmut.into_remainder();
+        if !a.is_empty() {
+            let next = self.next_u32();
+            let bytes = next.to_le_bytes();
+            a.copy_from_slice(&bytes[0..a.len()]);
+        }
+    }
+
+    #[inline]
+    fn next_u32(&mut self) -> u32 {
+        self.step()
+    }
+
+    #[inline]
+    fn next_u64(&mut self) -> u64 {
+        u64::from(self.step()) << 32 | u64::from(self.step())
+    }
+
+    #[inline]
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+        self.fill_bytes(dest);
+        Ok(())
     }
 }
 
@@ -129,7 +165,7 @@ impl PcgInnerState32 {
         let mut pcg = Self::zeroed();
         Self::unique_step(&mut pcg);
         pcg.state = pcg.state.wrapping_add(initstate);
-        Self::oneseq_step(&mut pcg);
+        Self::unique_step(&mut pcg);
         pcg
     }
 

@@ -1,4 +1,4 @@
-use crate::runtime_seeded::MagicSeed;
+use rand_core::RngCore;
 
 /// an RNG engine used for seeding other RNGs
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -9,7 +9,7 @@ pub struct SplitMix64 {
 impl Default for SplitMix64 {
     #[inline]
     fn default() -> Self {
-        Self::new(MagicSeed::new_magic() as u64)
+        Self::new(0)
     }
 }
 
@@ -19,6 +19,41 @@ impl Iterator for SplitMix64 {
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.mix())
+    }
+}
+
+impl RngCore for SplitMix64 {
+    #[inline]
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        let mut chunksmut = dest.chunks_exact_mut(8);
+        for chunk in chunksmut.by_ref() {
+            let next = self.next_u64();
+            let bytes = next.to_le_bytes();
+            chunk.copy_from_slice(&bytes);
+        }
+        let a = chunksmut.into_remainder();
+        if !a.is_empty() {
+            let next = self.next_u64();
+            let bytes = next.to_le_bytes();
+            a.copy_from_slice(&bytes[0..a.len()]);
+        }
+    }
+
+    #[inline]
+    #[expect(clippy::cast_possible_truncation)]
+    fn next_u32(&mut self) -> u32 {
+        self.next_u64() as u32
+    }
+
+    #[inline]
+    fn next_u64(&mut self) -> u64 {
+        self.mix()
+    }
+
+    #[inline]
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+        self.fill_bytes(dest);
+        Ok(())
     }
 }
 

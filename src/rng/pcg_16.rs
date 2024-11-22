@@ -6,7 +6,10 @@
     missing_docs
 )]
 
+use core::array;
 use core::ptr;
+
+use rand_core::RngCore;
 
 use crate::branch_rng::BranchRng;
 
@@ -24,6 +27,50 @@ impl BranchRng<Self> for Pcg16 {
     }
 }
 
+impl RngCore for Pcg16 {
+    #[inline]
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        let mut chunksmut = dest.chunks_exact_mut(2);
+        for chunk in chunksmut.by_ref() {
+            let next = self.next_u16();
+            let bytes = next.to_le_bytes();
+            chunk.copy_from_slice(&bytes);
+        }
+        let a = chunksmut.into_remainder();
+        if !a.is_empty() {
+            let next = self.next_u16();
+            let bytes = next.to_le_bytes();
+            a.copy_from_slice(&bytes[0..a.len()]);
+        }
+    }
+
+    #[inline]
+    fn next_u32(&mut self) -> u32 {
+        let mut buf: [u8; 4] = [0; 4];
+        for chunk in buf.chunks_exact_mut(2) {
+            let next = self.next_u16().to_le_bytes();
+            chunk.copy_from_slice(&next);
+        }
+        u32::from_le_bytes(buf)
+    }
+
+    #[inline]
+    fn next_u64(&mut self) -> u64 {
+        let mut buf: [u8; 8] = [0; 8];
+        for chunk in buf.chunks_exact_mut(2) {
+            let next = self.next_u16().to_le_bytes();
+            chunk.copy_from_slice(&next);
+        }
+        u64::from_le_bytes(buf)
+    }
+
+    #[inline]
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
+        self.fill_bytes(dest);
+        Ok(())
+    }
+}
+
 impl Pcg16 {
     #[inline]
     #[must_use]
@@ -34,7 +81,7 @@ impl Pcg16 {
 
     #[inline]
     pub fn next_u16(&mut self) -> u16 {
-        self.state.unique_rxs_m_xs()
+        self.state.oneseq_rxs_m_xs()
     }
 }
 
