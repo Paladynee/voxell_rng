@@ -2,9 +2,9 @@
 
 ```rust
 use voxell_rng::prelude::*;
-use voxell_rng::rng::XorShift32;
-// seeds using runtime entropy (no overhead / no syscalls)
-let mut rng = XorShift32::default();
+use voxell_rng::time_seeded::TimeSeededXorShift32;
+// seeds using os entropy
+let mut rng = TimeSeededXorShift32::generate().unwrap();
 rng.next_u32();
 ```
 
@@ -60,7 +60,7 @@ rng.next_f32();
 
 ```rust
 use voxell_rng::runtime_seeded::MagicallySeededXorShift32;
-let mut rng = MagicallySeededXorShift32::new_magic();
+let mut rng = MagicallySeededXorShift32::new_magic().unwrap();
 rng.next_f32();
 
 let mut rng2 = MagicallySeededXorShift32::new_with_reference(&());
