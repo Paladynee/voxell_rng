@@ -27,6 +27,15 @@ impl BranchRng<Self> for Pcg16 {
     }
 }
 
+impl Default for Pcg16 {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            state: PcgInnerState16::oneseq_seeded(PCG16_ONESEQ_INIT),
+        }
+    }
+}
+
 impl RngCore for Pcg16 {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {

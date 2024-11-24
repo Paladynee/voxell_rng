@@ -17,6 +17,15 @@ pub struct Pcg32 {
     state: PcgInnerState32,
 }
 
+impl Default for Pcg32 {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            state: PcgInnerState32::oneseq_seeded(PCG32_ONESEQ_INIT),
+        }
+    }
+}
+
 impl Pcg32 {
     #[inline]
     #[must_use]

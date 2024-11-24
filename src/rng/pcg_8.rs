@@ -17,6 +17,15 @@ pub struct Pcg8 {
     state: PcgInnerState8,
 }
 
+impl Default for Pcg8 {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            state: PcgInnerState8::oneseq_seeded(PCG8_ONESEQ_INIT),
+        }
+    }
+}
+
 impl BranchRng<Self> for Pcg8 {
     #[inline]
     fn branch_rng(&mut self) -> Self {

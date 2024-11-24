@@ -1,3 +1,5 @@
+use crate::getrandom::MagicSeed;
+
 use super::SplitMix64;
 use rand_core::RngCore;
 
@@ -7,11 +9,16 @@ pub struct XorShift32 {
     x: u32,
 }
 
-#[cfg(test)]
-#[test]
-fn test() {
-    let rng = XorShift32::new(14123);
-    let _: Vec<_> = rng.take(1034).collect();
+impl Default for XorShift32 {
+    /// # Panics
+    ///
+    /// This will panic if the OS RNG fails to generate a seed
+    #[inline]
+    #[track_caller]
+    fn default() -> Self {
+        let seed = MagicSeed::u32().unwrap();
+        Self::wrap(seed)
+    }
 }
 
 impl Iterator for XorShift32 {

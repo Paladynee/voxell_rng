@@ -17,6 +17,15 @@ pub struct Pcg64 {
     state: PcgInnerState64,
 }
 
+impl Default for Pcg64 {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            state: PcgInnerState64::oneseq_seeded(PCG64_ONESEQ_INIT),
+        }
+    }
+}
+
 impl BranchRng<Self> for Pcg64 {
     #[inline]
     fn branch_rng(&mut self) -> Self {

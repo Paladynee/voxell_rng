@@ -1,3 +1,5 @@
+use crate::getrandom::MagicSeed;
+
 use super::SplitMix64;
 use rand_core::RngCore;
 
@@ -5,6 +7,18 @@ use rand_core::RngCore;
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct XorShift128 {
     state: [u64; 2],
+}
+
+impl Default for XorShift128 {
+    /// # Panics
+    ///
+    /// This will panic if the OS RNG fails to generate a seed
+    #[inline]
+    #[track_caller]
+    fn default() -> Self {
+        let seed = [MagicSeed::u64().unwrap(), MagicSeed::u64().unwrap()];
+        Self::wrap(seed)
+    }
 }
 
 impl Iterator for XorShift128 {

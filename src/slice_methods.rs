@@ -1,6 +1,6 @@
 use core::array;
 
-use crate::{rng::pcg_advanced::pcg_64::PcgInnerState64, runtime_seeded::MagicSeed};
+use crate::{getrandom::MagicSeed, rng::pcg_advanced::pcg_64::PcgInnerState64};
 
 /// trait for handling the shuffle method
 pub trait Shuffle {
@@ -16,8 +16,8 @@ impl<T> Shuffle for [T] {
     #[expect(clippy::cast_possible_truncation)]
     #[inline]
     fn shuffle(&mut self) -> Result<(), getrandom::Error> {
-        let seed = MagicSeed::new_magic()?;
-        let mut rng = PcgInnerState64::oneseq_seeded(seed as u64);
+        let seed = MagicSeed::u64()?;
+        let mut rng = PcgInnerState64::oneseq_seeded(seed);
 
         for i in (1..self.len()).rev() {
             let j = rng.unique_rxs_m_xs_bounded(i as u64) as usize;
@@ -136,8 +136,8 @@ impl<T> SelectRandom for [T] {
         if self.is_empty() {
             return Ok(None);
         }
-        let seed = MagicSeed::new_magic()?;
-        let mut rng = PcgInnerState64::oneseq_seeded(seed as u64);
+        let seed = MagicSeed::u64()?;
+        let mut rng = PcgInnerState64::oneseq_seeded(seed);
         let i = rng.unique_rxs_m_xs_bounded(self.len() as u64) as usize;
 
         Ok(Some(&self[i]))
@@ -150,8 +150,8 @@ impl<T> SelectRandom for [T] {
             return Ok(None);
         }
 
-        let seed = MagicSeed::new_magic()?;
-        let mut rng = PcgInnerState64::oneseq_seeded(seed as u64);
+        let seed = MagicSeed::u64()?;
+        let mut rng = PcgInnerState64::oneseq_seeded(seed);
         let i = rng.unique_rxs_m_xs_bounded(self.len() as u64) as usize;
 
         Ok(Some(&mut self[i]))
@@ -167,8 +167,8 @@ impl<T> SelectRandom for [T] {
             return Ok(None);
         }
 
-        let seed = MagicSeed::new_magic()?;
-        let mut rng = PcgInnerState64::oneseq_seeded(seed as u64);
+        let seed = MagicSeed::u64()?;
+        let mut rng = PcgInnerState64::oneseq_seeded(seed);
 
         let mut refs = Vec::with_capacity(n);
         for _ in 0..n {
@@ -209,8 +209,8 @@ impl<T> SelectRandom for [T] {
             return Ok(None);
         }
 
-        let seed = MagicSeed::new_magic()?;
-        let mut rng = PcgInnerState64::oneseq_seeded(seed as u64);
+        let seed = MagicSeed::u64()?;
+        let mut rng = PcgInnerState64::oneseq_seeded(seed);
 
         Ok(Some(array::from_fn(|_| {
             let i = rng.unique_rxs_m_xs_bounded(self.len() as u64) as usize;
@@ -231,8 +231,8 @@ impl<T> SelectRandom for [T] {
         let mut iter = self.iter_mut();
         let mut reservoir = array::from_fn::<_, N, _>(|_| iter.next().unwrap());
 
-        let seed = MagicSeed::new_magic()?;
-        let mut rng = PcgInnerState64::oneseq_seeded(seed as u64);
+        let seed = MagicSeed::u64()?;
+        let mut rng = PcgInnerState64::oneseq_seeded(seed);
 
         for (i, elem) in iter.enumerate() {
             let k = rng.unique_rxs_m_xs_bounded((N + i + 1) as u64) as usize;

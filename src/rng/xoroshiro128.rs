@@ -1,5 +1,7 @@
 use rand_core::RngCore;
 
+use crate::getrandom::MagicSeed;
+
 use super::SplitMix64;
 
 /// bigger cheap and dirty random numbers
@@ -8,6 +10,18 @@ use super::SplitMix64;
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct XoRoShiRo128 {
     state: [u64; 2],
+}
+
+impl Default for XoRoShiRo128 {
+    /// # Panics
+    ///
+    /// This will panic if the OS RNG fails to generate a seed
+    #[inline]
+    #[track_caller]
+    fn default() -> Self {
+        let seed = [MagicSeed::u64().unwrap(), MagicSeed::u64().unwrap()];
+        Self::wrap(seed)
+    }
 }
 
 impl Iterator for XoRoShiRo128 {

@@ -53,8 +53,8 @@ pub mod rng {
     pub use xorshift128::XorShift128;
     pub use xorshift32::XorShift32;
 }
-/// Seed RNGs in runtime using dark arts
-pub mod runtime_seeded;
+/// Seed RNGs in runtime using OS entropy
+pub mod getrandom;
 /// Methods on slices that require randomness
 pub mod slice_methods;
 /// Seed RNGs using the system time

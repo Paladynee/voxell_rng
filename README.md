@@ -19,7 +19,7 @@ There are 5 RNGs available:
 
 -   [`SplitMix64`]: a 64-bit RNG with 64-bit output used for seeding other RNGs
 -   [`XorShift32`]: a 32-bit Xorshift RNG with 32-bit output
--   [`XorShift128`]: a 128-bit Xorshift RNG with 64-bit output
+-   [`XorShift128`]: a 128-bit Xorshift RNG with 64-bit output (Recommended)
 -   [`XoRoShiRo128`]: a 128-bit XoRoShiRo RNG with 64-bit output
 -   [`Pcg8`] through [`Pcg128`]: the PCG family of RNGs
 
@@ -59,12 +59,10 @@ rng.next_f32();
 3. Seed your RNGs using runtime entropy
 
 ```rust
-use voxell_rng::runtime_seeded::MagicallySeededXorShift32;
-let mut rng = MagicallySeededXorShift32::new_magic().unwrap();
+use voxell_rng::rng::XorShift32;
+// Default implementation for non-PCG RNG's use OS entropy
+let mut rng = XorShift32::default();
 rng.next_f32();
-
-let mut rng2 = MagicallySeededXorShift32::new_with_reference(&());
-rng2.next_f32();
 ```
 
 4. Create new RNGs from a master RNG for divergent thread local RNGs:

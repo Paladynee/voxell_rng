@@ -1,5 +1,7 @@
 use rand_core::RngCore;
 
+use crate::getrandom::MagicSeed;
+
 /// an RNG engine used for seeding other RNGs
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct SplitMix64 {
@@ -9,7 +11,8 @@ pub struct SplitMix64 {
 impl Default for SplitMix64 {
     #[inline]
     fn default() -> Self {
-        Self::new(0)
+        let seed = MagicSeed::u64().unwrap();
+        Self::wrap(seed)
     }
 }
 
