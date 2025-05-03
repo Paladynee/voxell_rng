@@ -44,47 +44,48 @@ impl Pcg8 {
     }
 
     #[inline]
-    pub fn next_u8(&mut self) -> u8 {
+    pub const fn default_advance(&mut self) -> u8 {
         self.state.oneseq_rxs_m_xs()
     }
 }
 
 impl RngCore for Pcg8 {
+    /// Fill `dest` with random data.
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
+        if dest.is_empty() {
+            return;
+        }
+
         for byte in dest {
-            *byte = self.next_u8();
+            *byte = self.default_advance();
         }
     }
 
+    /// Return the next random `u32`.
     #[inline]
     fn next_u32(&mut self) -> u32 {
         u32::from_le_bytes([
-            self.next_u8(),
-            self.next_u8(),
-            self.next_u8(),
-            self.next_u8(),
+            self.default_advance(),
+            self.default_advance(),
+            self.default_advance(),
+            self.default_advance(),
         ])
     }
 
+    /// Return the next random `u64`.
     #[inline]
     fn next_u64(&mut self) -> u64 {
         u64::from_le_bytes([
-            self.next_u8(),
-            self.next_u8(),
-            self.next_u8(),
-            self.next_u8(),
-            self.next_u8(),
-            self.next_u8(),
-            self.next_u8(),
-            self.next_u8(),
+            self.default_advance(),
+            self.default_advance(),
+            self.default_advance(),
+            self.default_advance(),
+            self.default_advance(),
+            self.default_advance(),
+            self.default_advance(),
+            self.default_advance(),
         ])
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 
@@ -115,10 +116,7 @@ impl PcgInnerState8 {
 
     #[inline]
     pub const fn oneseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG8_DEFAULT_MULT)
-            .wrapping_add(PCG8_DEFAULT_INC);
+        self.state = self.state.wrapping_mul(PCG8_DEFAULT_MULT).wrapping_add(PCG8_DEFAULT_INC);
     }
 
     #[inline]
@@ -138,20 +136,12 @@ impl PcgInnerState8 {
 
     #[inline]
     pub fn unique_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG8_DEFAULT_MULT)
-            .wrapping_add(ptr::from_mut(self) as u8 | 1);
+        self.state = self.state.wrapping_mul(PCG8_DEFAULT_MULT).wrapping_add(ptr::from_mut(self) as u8 | 1);
     }
 
     #[inline]
     pub fn unique_advance(&mut self, delta: u8) {
-        self.state = pcg8_advance_pcg(
-            self.state,
-            delta,
-            PCG8_DEFAULT_MULT,
-            ptr::from_mut(self) as u8 | 1,
-        );
+        self.state = pcg8_advance_pcg(self.state, delta, PCG8_DEFAULT_MULT, ptr::from_mut(self) as u8 | 1);
     }
 
     #[inline]
@@ -228,10 +218,7 @@ impl PcgInnerStateSetseq8 {
 
     #[inline]
     pub const fn setseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG8_DEFAULT_MULT)
-            .wrapping_add(self.inc);
+        self.state = self.state.wrapping_mul(PCG8_DEFAULT_MULT).wrapping_add(self.inc);
     }
 
     #[inline]

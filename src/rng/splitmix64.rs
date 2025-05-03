@@ -1,6 +1,6 @@
 use rand_core::RngCore;
 
-use crate::getrandom::MagicSeed;
+use crate::getrandom::GetRandom;
 
 /// an RNG engine used for seeding other RNGs
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -11,7 +11,7 @@ pub struct SplitMix64 {
 impl Default for SplitMix64 {
     #[inline]
     fn default() -> Self {
-        let seed = MagicSeed::u64().unwrap();
+        let seed = u64::get_random().unwrap();
         Self::wrap(seed)
     }
 }
@@ -26,37 +26,38 @@ impl Iterator for SplitMix64 {
 }
 
 impl RngCore for SplitMix64 {
+    /// Fill `dest` with random data.
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        let mut chunksmut = dest.chunks_exact_mut(8);
-        for chunk in chunksmut.by_ref() {
-            let next = self.next_u64();
-            let bytes = next.to_le_bytes();
-            chunk.copy_from_slice(&bytes);
+        if dest.is_empty() {
+            return;
         }
-        let a = chunksmut.into_remainder();
-        if !a.is_empty() {
+
+        let mut byte_iterator = dest.chunks_exact_mut(8);
+        for slice in byte_iterator.by_ref() {
             let next = self.next_u64();
-            let bytes = next.to_le_bytes();
-            a.copy_from_slice(&bytes[0..a.len()]);
+            let next_bytes = next.to_le_bytes();
+            slice.copy_from_slice(next_bytes.as_slice());
+        }
+
+        let remainder = byte_iterator.into_remainder();
+        if !remainder.is_empty() {
+            let next = self.next_u64();
+            let next_bytes = next.to_le_bytes();
+            remainder.copy_from_slice(&next_bytes[..remainder.len()]);
         }
     }
 
+    /// Return the next random `u32`.
     #[inline]
-    #[expect(clippy::cast_possible_truncation)]
     fn next_u32(&mut self) -> u32 {
         self.next_u64() as u32
     }
 
+    /// Return the next random `u64`.
     #[inline]
     fn next_u64(&mut self) -> u64 {
         self.mix()
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 

@@ -1,6 +1,6 @@
 use rand_core::RngCore;
 
-use crate::getrandom::MagicSeed;
+use crate::getrandom::GetRandom;
 
 use super::SplitMix64;
 
@@ -19,7 +19,7 @@ impl Default for XoRoShiRo128 {
     #[inline]
     #[track_caller]
     fn default() -> Self {
-        let seed = [MagicSeed::u64().unwrap(), MagicSeed::u64().unwrap()];
+        let seed = [u64::get_random().unwrap(), u64::get_random().unwrap()];
         Self::wrap(seed)
     }
 }
@@ -37,37 +37,38 @@ impl Iterator for XoRoShiRo128 {
 }
 
 impl RngCore for XoRoShiRo128 {
+    /// Fill `dest` with random data.
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        let mut chunksmut = dest.chunks_exact_mut(8);
-        for chunk in chunksmut.by_ref() {
-            let next = self.next_u64();
-            let bytes = next.to_le_bytes();
-            chunk.copy_from_slice(&bytes);
+        if dest.is_empty() {
+            return;
         }
-        let a = chunksmut.into_remainder();
-        if !a.is_empty() {
+
+        let mut byte_iterator = dest.chunks_exact_mut(8);
+        for slice in byte_iterator.by_ref() {
             let next = self.next_u64();
-            let bytes = next.to_le_bytes();
-            a.copy_from_slice(&bytes[0..a.len()]);
+            let next_bytes = next.to_le_bytes();
+            slice.copy_from_slice(next_bytes.as_slice());
+        }
+
+        let remainder = byte_iterator.into_remainder();
+        if !remainder.is_empty() {
+            let next = self.next_u64();
+            let next_bytes = next.to_le_bytes();
+            remainder.copy_from_slice(&next_bytes[..remainder.len()]);
         }
     }
 
+    /// Return the next random `u32`.
     #[inline]
-    #[expect(clippy::cast_possible_truncation)]
     fn next_u32(&mut self) -> u32 {
         self.next_u64() as u32
     }
 
+    /// Return the next random `u64`.
     #[inline]
     fn next_u64(&mut self) -> u64 {
         self.step()
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 
@@ -96,7 +97,6 @@ impl XoRoShiRo128 {
     /// the resulting f32 will be between `[0, 1)`
     /// (0 inclusive, 1 exclusive)
     #[inline]
-    #[expect(clippy::cast_precision_loss)]
     pub const fn next_f64(&mut self) -> f64 {
         self.step() as f64 / u64::MAX as f64
     }

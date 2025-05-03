@@ -13,7 +13,6 @@ impl TimeSeededXorShift32 {
     ///
     /// This function will return an error if the system time cannot be obtained.
     #[inline]
-    #[expect(clippy::cast_possible_truncation)]
     pub fn generate() -> Result<XorShift32, SystemTimeError> {
         let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let mut temp_splitmix = SplitMix64::wrap(current_time as u64);
@@ -35,7 +34,6 @@ impl TimeSeededSplitMix64 {
     ///
     /// This function will return an error if the system time cannot be obtained.
     #[inline]
-    #[expect(clippy::cast_possible_truncation)]
     pub fn generate() -> Result<SplitMix64, SystemTimeError> {
         let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         Ok(SplitMix64::wrap(current_time as u64))
@@ -54,7 +52,6 @@ impl TimeSeededXoRoShiRo128Plus {
     ///
     /// This function will return an error if the system time cannot be obtained.
     #[inline]
-    #[expect(clippy::cast_possible_truncation)]
     pub fn generate() -> Result<XoRoShiRo128, SystemTimeError> {
         let current_time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
         let mut temp_splitmix = SplitMix64::wrap(current_time as u64);

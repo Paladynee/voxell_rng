@@ -36,7 +36,7 @@ impl Pcg32 {
     }
 
     #[inline]
-    pub fn step(&mut self) -> u32 {
+    pub const fn default_advance(&mut self) -> u32 {
         self.state.oneseq_rxs_m_xs()
     }
 }
@@ -46,13 +46,13 @@ impl RngCore for Pcg32 {
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         let mut chunksmut = dest.chunks_exact_mut(4);
         for chunk in chunksmut.by_ref() {
-            let next = self.next_u32();
+            let next = self.default_advance();
             let bytes = next.to_le_bytes();
             chunk.copy_from_slice(&bytes);
         }
         let a = chunksmut.into_remainder();
         if !a.is_empty() {
-            let next = self.next_u32();
+            let next = self.default_advance();
             let bytes = next.to_le_bytes();
             a.copy_from_slice(&bytes[0..a.len()]);
         }
@@ -60,18 +60,12 @@ impl RngCore for Pcg32 {
 
     #[inline]
     fn next_u32(&mut self) -> u32 {
-        self.step()
+        self.default_advance()
     }
 
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        u64::from(self.step()) << 32 | u64::from(self.step())
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
-        Ok(())
+        (u64::from(self.default_advance()) << 32) | u64::from(self.default_advance())
     }
 }
 
@@ -111,10 +105,7 @@ impl PcgInnerState32 {
 
     #[inline]
     pub const fn oneseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG32_DEFAULT_MULT)
-            .wrapping_add(PCG32_DEFAULT_INC);
+        self.state = self.state.wrapping_mul(PCG32_DEFAULT_MULT).wrapping_add(PCG32_DEFAULT_INC);
     }
 
     #[inline]
@@ -134,20 +125,12 @@ impl PcgInnerState32 {
 
     #[inline]
     pub fn unique_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG32_DEFAULT_MULT)
-            .wrapping_add(ptr::from_mut(self) as u32 | 1);
+        self.state = self.state.wrapping_mul(PCG32_DEFAULT_MULT).wrapping_add(ptr::from_mut(self) as u32 | 1);
     }
 
     #[inline]
     pub fn unique_advance(&mut self, delta: u32) {
-        self.state = pcg32_advance_lcg(
-            self.state,
-            delta,
-            PCG32_DEFAULT_MULT,
-            ptr::from_mut(self) as u32 | 1,
-        );
+        self.state = pcg32_advance_lcg(self.state, delta, PCG32_DEFAULT_MULT, ptr::from_mut(self) as u32 | 1);
     }
 
     #[inline]
@@ -332,10 +315,7 @@ impl PcgInnerStateSetseq32 {
 
     #[inline]
     pub const fn setseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG32_DEFAULT_MULT)
-            .wrapping_add(self.inc);
+        self.state = self.state.wrapping_mul(PCG32_DEFAULT_MULT).wrapping_add(self.inc);
     }
 
     #[inline]
@@ -418,12 +398,7 @@ pub const fn pcg32_rxs_m_xs(state: u32) -> u32 {
 
 #[inline]
 #[must_use]
-pub const fn pcg32_advance_lcg(
-    state: u32,
-    mut delta: u32,
-    mut cur_mult: u32,
-    mut cur_plus: u32,
-) -> u32 {
+pub const fn pcg32_advance_lcg(state: u32, mut delta: u32, mut cur_mult: u32, mut cur_plus: u32) -> u32 {
     let mut acc_mult: u32 = 1;
     let mut acc_plus: u32 = 0;
     while (delta > 0) {

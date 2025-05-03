@@ -44,7 +44,7 @@ impl Pcg128 {
     }
 
     #[inline]
-    pub fn next_u128(&mut self) -> u128 {
+    pub const fn default_advance(&mut self) -> u128 {
         self.state.oneseq_rxs_m_xs()
     }
 }
@@ -54,34 +54,27 @@ impl RngCore for Pcg128 {
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         let mut chunksmut = dest.chunks_exact_mut(16);
         for chunk in chunksmut.by_ref() {
-            let next = self.next_u128();
+            let next = self.default_advance();
             let bytes = next.to_le_bytes();
             chunk.copy_from_slice(&bytes);
         }
         let a = chunksmut.into_remainder();
         if !a.is_empty() {
-            let next = self.next_u128();
+            let next = self.default_advance();
             let bytes = next.to_le_bytes();
             a.copy_from_slice(&bytes[0..a.len()]);
         }
     }
 
     #[inline]
-    #[expect(clippy::cast_possible_truncation)]
     fn next_u32(&mut self) -> u32 {
         // TODO: use output functions that dont use the entire inner state
-        self.next_u128() as u32
+        self.default_advance() as u32
     }
     #[inline]
     fn next_u64(&mut self) -> u64 {
         // TODO: use output functions that dont use the entire inner state
-        self.next_u128() as u64
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
-        Ok(())
+        self.default_advance() as u64
     }
 }
 
@@ -115,10 +108,7 @@ impl PcgInnerState128 {
 
     #[inline]
     pub const fn oneseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG128_DEFAULT_MUL)
-            .wrapping_add(PCG128_DEFAULT_INC);
+        self.state = self.state.wrapping_mul(PCG128_DEFAULT_MUL).wrapping_add(PCG128_DEFAULT_INC);
     }
 
     #[inline]
@@ -138,20 +128,12 @@ impl PcgInnerState128 {
 
     #[inline]
     pub fn unique_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG128_DEFAULT_MUL)
-            .wrapping_add(ptr::from_mut(self) as u128 | 1);
+        self.state = self.state.wrapping_mul(PCG128_DEFAULT_MUL).wrapping_add(ptr::from_mut(self) as u128 | 1);
     }
 
     #[inline]
     pub fn unique_advance(&mut self, delta: u128) {
-        self.state = pcg128_advance_lcg(
-            self.state,
-            delta,
-            PCG128_DEFAULT_MUL,
-            ptr::from_mut(self) as u128 | 1,
-        );
+        self.state = pcg128_advance_lcg(self.state, delta, PCG128_DEFAULT_MUL, ptr::from_mut(self) as u128 | 1);
     }
 
     #[inline]
@@ -414,10 +396,7 @@ impl PcgInnerStateSetseq128 {
 
     #[inline]
     pub const fn setseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG128_DEFAULT_MUL)
-            .wrapping_add(self.inc);
+        self.state = self.state.wrapping_mul(PCG128_DEFAULT_MUL).wrapping_add(self.inc);
     }
 
     #[inline]
@@ -550,24 +529,20 @@ pub const fn pcg128_xsl_rr(state: u128) -> u64 {
 #[inline]
 #[must_use]
 pub const fn pcg128_rxs_m_xs(state: u128) -> u128 {
-    let word = ((state >> ((state >> 122).wrapping_add(6))) ^ state)
-        .wrapping_mul(pcg128_const(17766728186571221404, 12605985483714917081));
+    let word = ((state >> ((state >> 122).wrapping_add(6))) ^ state).wrapping_mul(pcg128_const(17766728186571221404, 12605985483714917081));
     (word >> 86) ^ word
 }
 
 #[inline]
 #[must_use]
 pub const fn pcg128_const(high: u64, low: u64) -> u128 {
-    (high as u128) << 64 | (low as u128)
+    ((high as u128) << 64) | (low as u128)
 }
 
 #[inline]
 #[must_use]
 pub const fn pcg128_xsh_rr(state: u128) -> u64 {
-    rotr64(
-        (((state >> 29) ^ state) >> 58) as u64,
-        (state >> 122) as u32,
-    )
+    rotr64((((state >> 29) ^ state) >> 58) as u64, (state >> 122) as u32)
 }
 
 #[inline]
@@ -579,12 +554,7 @@ pub const fn pcg128_xsh_rs(state: u128) -> u64 {
 
 #[inline]
 #[must_use]
-pub const fn pcg128_advance_lcg(
-    state: u128,
-    mut delta: u128,
-    mut cur_mult: u128,
-    mut cur_plus: u128,
-) -> u128 {
+pub const fn pcg128_advance_lcg(state: u128, mut delta: u128, mut cur_mult: u128, mut cur_plus: u128) -> u128 {
     let mut acc_mult: u128 = 1;
     let mut acc_plus: u128 = 0;
     while (delta > 0) {

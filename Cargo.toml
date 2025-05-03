@@ -8,23 +8,32 @@ license = "MIT"
 name = "voxell_rng"
 readme = "README.md"
 repository = "https://github.com/paladynee/voxell_rng"
-version = "0.5.0"
+version = "0.6.0"
 
 [profile.release]
 codegen-units = 1
+debug = false
+debug-assertions = false
+incremental = false
 lto = true
 opt-level = 3
+overflow-checks = false
+panic = "abort"
+rpath = false
+strip = true
+
+[dependencies]
+getrandom = "0.3.2"
+preinterpret = "0.2.0"
+rand_core = "0.9.3"
 
 [lints.clippy]
 absolute_paths = "warn"
 alloc_instead_of_core = "warn"
-allow_attributes = "warn"
-arithmetic_side_effects = "warn"
 as_underscore = "warn"
 assigning_clones = "warn"
 bool_to_int_with_if = "warn"
 borrow_as_ptr = "warn"
-# cargo = { level = "warn", priority = -1 }
 case_sensitive_file_extension_comparisons = "warn"
 cfg_not_test = "warn"
 clone_on_ref_ptr = "warn"
@@ -54,8 +63,6 @@ rc_buffer = "warn"
 rc_mutex = "warn"
 rest_pat_in_fully_bound_structs = "warn"
 same_name_method = "warn"
-std_instead_of_alloc = "warn"
-std_instead_of_core = "warn"
 string_slice = "warn"
 string_to_string = "warn"
 style = { level = "warn", priority = -1 }
@@ -66,13 +73,19 @@ unneeded_field_pattern = "warn"
 unused_result_ok = "warn"
 verbose_file_reads = "warn"
 
+cast_lossless = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
 float_cmp = "allow"
+ignored_unit_patterns = "allow"
+redundant_closure_for_method_calls = "allow"
+similar_names = "allow"
+std_instead_of_alloc = "allow"
+std_instead_of_core = "allow"
+too_many_lines = "allow"
 uninlined_format_args = "allow"
+unreadable_literal = "allow"
 
 [lints.rust]
 ambiguous_negative_literals = "warn"
 non_ascii_idents = "warn"
-
-[dependencies]
-getrandom = "0.2.15"
-rand_core = "0.6.4"

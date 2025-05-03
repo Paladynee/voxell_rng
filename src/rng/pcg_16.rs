@@ -37,46 +37,49 @@ impl Default for Pcg16 {
 }
 
 impl RngCore for Pcg16 {
+    /// Fill `dest` with random data.
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        let mut chunksmut = dest.chunks_exact_mut(2);
-        for chunk in chunksmut.by_ref() {
-            let next = self.next_u16();
-            let bytes = next.to_le_bytes();
-            chunk.copy_from_slice(&bytes);
+        if dest.is_empty() {
+            return;
         }
-        let a = chunksmut.into_remainder();
-        if !a.is_empty() {
-            let next = self.next_u16();
-            let bytes = next.to_le_bytes();
-            a.copy_from_slice(&bytes[0..a.len()]);
+
+        let mut byte_iterator = dest.chunks_exact_mut(2);
+
+        for slice in byte_iterator.by_ref() {
+            let next = self.default_advance();
+            let next_bytes = next.to_le_bytes();
+            slice.copy_from_slice(next_bytes.as_slice());
+        }
+
+        let remainder = byte_iterator.into_remainder();
+        if !remainder.is_empty() {
+            let next = self.default_advance();
+            let next_bytes = next.to_le_bytes();
+            remainder.copy_from_slice(&next_bytes[..remainder.len()]);
         }
     }
 
+    /// Return the next random `u32`.
     #[inline]
     fn next_u32(&mut self) -> u32 {
         let mut buf: [u8; 4] = [0; 4];
         for chunk in buf.chunks_exact_mut(2) {
-            let next = self.next_u16().to_le_bytes();
+            let next = self.default_advance().to_le_bytes();
             chunk.copy_from_slice(&next);
         }
         u32::from_le_bytes(buf)
     }
 
+    /// Return the next random `u64`.
     #[inline]
     fn next_u64(&mut self) -> u64 {
         let mut buf: [u8; 8] = [0; 8];
         for chunk in buf.chunks_exact_mut(2) {
-            let next = self.next_u16().to_le_bytes();
+            let next = self.default_advance().to_le_bytes();
             chunk.copy_from_slice(&next);
         }
         u64::from_le_bytes(buf)
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 
@@ -89,7 +92,7 @@ impl Pcg16 {
     }
 
     #[inline]
-    pub fn next_u16(&mut self) -> u16 {
+    pub const fn default_advance(&mut self) -> u16 {
         self.state.oneseq_rxs_m_xs()
     }
 }
@@ -121,10 +124,7 @@ impl PcgInnerState16 {
 
     #[inline]
     pub const fn oneseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG16_DEFAULT_MULT)
-            .wrapping_add(PCG16_DEFAULT_INC);
+        self.state = self.state.wrapping_mul(PCG16_DEFAULT_MULT).wrapping_add(PCG16_DEFAULT_INC);
     }
 
     #[inline]
@@ -144,20 +144,12 @@ impl PcgInnerState16 {
 
     #[inline]
     pub fn unique_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG16_DEFAULT_MULT)
-            .wrapping_add(ptr::from_mut(self) as u16 | 1);
+        self.state = self.state.wrapping_mul(PCG16_DEFAULT_MULT).wrapping_add(ptr::from_mut(self) as u16 | 1);
     }
 
     #[inline]
     pub fn unique_advance(&mut self, delta: u16) {
-        self.state = pcg16_advance_lcg(
-            self.state,
-            delta,
-            PCG16_DEFAULT_MULT,
-            ptr::from_mut(self) as u16 | 1,
-        );
+        self.state = pcg16_advance_lcg(self.state, delta, PCG16_DEFAULT_MULT, ptr::from_mut(self) as u16 | 1);
     }
 
     #[inline]
@@ -343,10 +335,7 @@ impl PcgInnerStateSetseq16 {
 
     #[inline]
     pub const fn setseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG16_DEFAULT_MULT)
-            .wrapping_add(self.inc);
+        self.state = self.state.wrapping_mul(PCG16_DEFAULT_MULT).wrapping_add(self.inc);
     }
 
     #[inline]
@@ -421,12 +410,7 @@ impl PcgInnerStateSetseq16 {
 }
 
 #[inline]
-const fn pcg16_advance_lcg(
-    state: u16,
-    mut delta: u16,
-    mut cur_mult: u16,
-    mut cur_plus: u16,
-) -> u16 {
+const fn pcg16_advance_lcg(state: u16, mut delta: u16, mut cur_mult: u16, mut cur_plus: u16) -> u16 {
     let mut acc_mult: u16 = 1;
     let mut acc_plus: u16 = 0;
     while delta > 0 {

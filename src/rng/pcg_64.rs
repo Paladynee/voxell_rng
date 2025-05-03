@@ -44,7 +44,7 @@ impl Pcg64 {
     }
 
     #[inline]
-    pub fn step(&mut self) -> u64 {
+    pub const fn default_advance(&mut self) -> u64 {
         self.state.oneseq_rxs_m_xs()
     }
 }
@@ -54,34 +54,27 @@ impl RngCore for Pcg64 {
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         let mut chunksmut = dest.chunks_exact_mut(8);
         for chunk in chunksmut.by_ref() {
-            let next = self.next_u64();
+            let next = self.default_advance();
             let bytes = next.to_le_bytes();
             chunk.copy_from_slice(&bytes);
         }
         let a = chunksmut.into_remainder();
         if !a.is_empty() {
-            let next = self.next_u64();
+            let next = self.default_advance();
             let bytes = next.to_le_bytes();
             a.copy_from_slice(&bytes[0..a.len()]);
         }
     }
 
     #[inline]
-    #[expect(clippy::cast_possible_truncation)]
     fn next_u32(&mut self) -> u32 {
         // TODO: use output functions that dont use the entire inner state
-        self.step() as u32
+        self.default_advance() as u32
     }
 
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        self.step()
-    }
-
-    #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        self.fill_bytes(dest);
-        Ok(())
+        self.default_advance()
     }
 }
 
@@ -112,10 +105,7 @@ impl PcgInnerState64 {
 
     #[inline]
     pub const fn oneseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG64_DEFAULT_MULT)
-            .wrapping_add(PCG64_DEFAULT_INC);
+        self.state = self.state.wrapping_mul(PCG64_DEFAULT_MULT).wrapping_add(PCG64_DEFAULT_INC);
     }
 
     #[inline]
@@ -135,20 +125,12 @@ impl PcgInnerState64 {
 
     #[inline]
     pub fn unique_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG64_DEFAULT_MULT)
-            .wrapping_add(ptr::from_mut(self) as u64 | 1);
+        self.state = self.state.wrapping_mul(PCG64_DEFAULT_MULT).wrapping_add(ptr::from_mut(self) as u64 | 1);
     }
 
     #[inline]
     pub fn unique_advance(&mut self, delta: u64) {
-        self.state = pcg64_advance_lcg(
-            self.state,
-            delta,
-            PCG64_DEFAULT_MULT,
-            ptr::from_mut(self) as u64 | 1,
-        );
+        self.state = pcg64_advance_lcg(self.state, delta, PCG64_DEFAULT_MULT, ptr::from_mut(self) as u64 | 1);
     }
 
     #[inline]
@@ -423,10 +405,7 @@ impl PcgInnerStateSetseq64 {
 
     #[inline]
     pub const fn setseq_step(&mut self) {
-        self.state = self
-            .state
-            .wrapping_mul(PCG64_DEFAULT_MULT)
-            .wrapping_add(self.inc);
+        self.state = self.state.wrapping_mul(PCG64_DEFAULT_MULT).wrapping_add(self.inc);
     }
 
     #[inline]
@@ -545,12 +524,7 @@ pub const fn pcg64_xsh_rs(state: u64) -> u32 {
 
 #[inline]
 #[must_use]
-pub const fn pcg64_advance_lcg(
-    state: u64,
-    mut delta: u64,
-    mut cur_mult: u64,
-    mut cur_plus: u64,
-) -> u64 {
+pub const fn pcg64_advance_lcg(state: u64, mut delta: u64, mut cur_mult: u64, mut cur_plus: u64) -> u64 {
     let mut acc_mult: u64 = 1;
     let mut acc_plus: u64 = 0;
     while (delta > 0) {
@@ -580,8 +554,7 @@ pub const fn rotr32(value: u32, rot: u32) -> u32 {
 #[inline]
 #[must_use]
 pub const fn pcg64_rxs_m_xs(state: u64) -> u64 {
-    let word =
-        ((state >> ((state >> 59).wrapping_add(5))) ^ state).wrapping_mul(12605985483714917081);
+    let word = ((state >> ((state >> 59).wrapping_add(5))) ^ state).wrapping_mul(12605985483714917081);
     (word >> 43) ^ word
 }
 
