@@ -4,6 +4,9 @@ use rand_core::RngCore;
 
 /// Extends `RngCore` to support all primitive integer types.
 pub trait RngCoreExtension: RngCore {
+    /// next bool element from the rng.
+    #[must_use = "please use the generated value"]
+    fn next_bool(&mut self) -> bool;
     /// next u8 element from the rng.
     #[must_use = "please use the generated value"]
     fn next_u8(&mut self) -> u8;
@@ -66,6 +69,10 @@ macro_rules! gen_next_prim_function {
 macro_rules! extend_rngcore_for {
     ($ty:ty) => {
         impl RngCoreExtension for $ty {
+            #[inline]
+            fn next_bool(&mut self) -> bool {
+                self.next_u8() % 2 == 0
+            }
             gen_next_prim_function!(next_u8, u8, 1);
             gen_next_prim_function!(next_u16, u16, 2);
             gen_next_prim_function!(next_u32, u32, 4);
