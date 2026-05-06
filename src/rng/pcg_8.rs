@@ -10,7 +10,9 @@ use core::ptr;
 
 use rand_core::RngCore;
 
-use crate::branch_rng::BranchRng;
+use crate::{branch_rng::BranchRng, polyfill_next_f32_next_f64_from_fn};
+
+use super::polyfill::polyfill_fill_bytes_u8;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Pcg8 {
@@ -47,45 +49,33 @@ impl Pcg8 {
     pub const fn default_advance(&mut self) -> u8 {
         self.state.oneseq_rxs_m_xs()
     }
+
+    polyfill_next_f32_next_f64_from_fn!(
+        pub fn next_f32, next_f64(Self::next_u32 = u32);
+    );
 }
 
 impl RngCore for Pcg8 {
     /// Fill `dest` with random data.
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        if dest.is_empty() {
-            return;
-        }
-
-        for byte in dest {
-            *byte = self.default_advance();
-        }
+        polyfill_fill_bytes_u8(Self::default_advance)(self, dest);
     }
 
     /// Return the next random `u32`.
     #[inline]
     fn next_u32(&mut self) -> u32 {
-        u32::from_le_bytes([
-            self.default_advance(),
-            self.default_advance(),
-            self.default_advance(),
-            self.default_advance(),
-        ])
+        let mut buf: [u8; 4] = [0; 4];
+        <Self as RngCore>::fill_bytes(self, &mut buf);
+        u32::from_ne_bytes(buf)
     }
 
     /// Return the next random `u64`.
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        u64::from_le_bytes([
-            self.default_advance(),
-            self.default_advance(),
-            self.default_advance(),
-            self.default_advance(),
-            self.default_advance(),
-            self.default_advance(),
-            self.default_advance(),
-            self.default_advance(),
-        ])
+        let mut buf: [u8; 8] = [0; 8];
+        <Self as RngCore>::fill_bytes(self, &mut buf);
+        u64::from_ne_bytes(buf)
     }
 }
 

@@ -12,6 +12,8 @@ use rand_core::RngCore;
 
 use crate::branch_rng::BranchRng;
 
+use super::polyfill::polyfill_fill_bytes_u64;
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct Pcg64 {
     state: PcgInnerState64,
@@ -47,29 +49,24 @@ impl Pcg64 {
     pub const fn default_advance(&mut self) -> u64 {
         self.state.oneseq_rxs_m_xs()
     }
+
+    #[inline]
+    pub const fn default_small_advance(&mut self) -> u32 {
+        self.state.oneseq_xsh_rs()
+    }
 }
 
 impl RngCore for Pcg64 {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        let mut chunksmut = dest.chunks_exact_mut(8);
-        for chunk in chunksmut.by_ref() {
-            let next = self.default_advance();
-            let bytes = next.to_le_bytes();
-            chunk.copy_from_slice(&bytes);
-        }
-        let a = chunksmut.into_remainder();
-        if !a.is_empty() {
-            let next = self.default_advance();
-            let bytes = next.to_le_bytes();
-            a.copy_from_slice(&bytes[0..a.len()]);
-        }
+        polyfill_fill_bytes_u64(Self::default_advance)(self, dest);
     }
 
     #[inline]
     fn next_u32(&mut self) -> u32 {
-        // TODO: use output functions that dont use the entire inner state
-        self.default_advance() as u32
+        // // TODO: use output functions that dont use the entire inner state
+        // self.default_advance() as u32
+        self.default_small_advance()
     }
 
     #[inline]

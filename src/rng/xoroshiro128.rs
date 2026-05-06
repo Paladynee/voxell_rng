@@ -1,8 +1,8 @@
 use rand_core::RngCore;
 
-use crate::getrandom::GetRandom;
+use crate::{genrandom::GenRandom, polyfill_next_f32_next_f64_from_fn};
 
-use super::SplitMix64;
+use super::{polyfill::polyfill_fill_bytes_u64, SplitMix64};
 
 /// bigger cheap and dirty random numbers
 ///
@@ -24,39 +24,11 @@ impl Default for XoRoShiRo128 {
     }
 }
 
-impl Iterator for XoRoShiRo128 {
-    type Item = u64;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.step() {
-            0 => None,
-            x => Some(x),
-        }
-    }
-}
-
 impl RngCore for XoRoShiRo128 {
     /// Fill `dest` with random data.
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        if dest.is_empty() {
-            return;
-        }
-
-        let mut byte_iterator = dest.chunks_exact_mut(8);
-        for slice in byte_iterator.by_ref() {
-            let next = self.next_u64();
-            let next_bytes = next.to_le_bytes();
-            slice.copy_from_slice(next_bytes.as_slice());
-        }
-
-        let remainder = byte_iterator.into_remainder();
-        if !remainder.is_empty() {
-            let next = self.next_u64();
-            let next_bytes = next.to_le_bytes();
-            remainder.copy_from_slice(&next_bytes[..remainder.len()]);
-        }
+        polyfill_fill_bytes_u64(Self::next_u64)(self, dest);
     }
 
     /// Return the next random `u32`.
@@ -68,7 +40,7 @@ impl RngCore for XoRoShiRo128 {
     /// Return the next random `u64`.
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        self.step()
+        self.advance()
     }
 }
 
@@ -91,15 +63,13 @@ impl XoRoShiRo128 {
     #[inline]
     #[must_use]
     pub const fn wrap(seed: [u64; 2]) -> Self {
+        assert!(seed[0] != 0, "XoRoShiRo128 cannot be seeded with 0");
         Self { state: seed }
     }
 
-    /// the resulting f32 will be between `[0, 1)`
-    /// (0 inclusive, 1 exclusive)
-    #[inline]
-    pub const fn next_f64(&mut self) -> f64 {
-        self.step() as f64 / u64::MAX as f64
-    }
+    polyfill_next_f32_next_f64_from_fn!(
+        pub fn next_f32, next_f64(Self::advance = u64);
+    );
 
     // pub fn jump(&mut self) {
     //     let mut s0 = 0;
@@ -198,20 +168,35 @@ impl XoRoShiRo128 {
         self.state
     }
 
-    /// generate a new random `u64` value
-    ///
-    /// this function is intentionally not public,
-    /// use [`rand_core::RngCore::next_u64`] instead.
     #[inline]
-    const fn step(&mut self) -> u64 {
-        let s0 = self.state[0];
-        let mut s1 = self.state[1];
-        let result = s0.wrapping_add(s1);
+    const fn advance(&mut self) -> u64 {
+        xoroshiro128_step(&mut self.state)
+    }
+}
+/// generate a new random `u64` value
+///
+/// this function is intentionally not public,
+#[inline]
+pub const fn xoroshiro128_step(state: &mut [u64; 2]) -> u64 {
+    let s0 = state[0];
+    let mut s1 = state[1];
+    let result = s0.wrapping_add(s1);
 
-        s1 ^= s0;
-        self.state[0] = s0.rotate_left(24) ^ s1 ^ (s1 << 16);
-        self.state[1] = s1.rotate_left(37);
+    s1 ^= s0;
+    state[0] = s0.rotate_left(24) ^ s1 ^ (s1 << 16);
+    state[1] = s1.rotate_left(37);
 
-        result
+    result
+}
+
+impl Iterator for XoRoShiRo128 {
+    type Item = u64;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.advance() {
+            0 => None,
+            x => Some(x),
+        }
     }
 }

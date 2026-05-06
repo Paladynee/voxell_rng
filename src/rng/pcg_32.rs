@@ -10,7 +10,9 @@ use core::ptr;
 
 use rand_core::RngCore;
 
-use crate::branch_rng::BranchRng;
+use crate::{branch_rng::BranchRng, polyfill_next_f32_next_f64_from_fn};
+
+use super::polyfill::polyfill_fill_bytes_u32;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Pcg32 {
@@ -39,23 +41,21 @@ impl Pcg32 {
     pub const fn default_advance(&mut self) -> u32 {
         self.state.oneseq_rxs_m_xs()
     }
+
+    #[inline]
+    pub const fn default_small_advance(&mut self) -> u16 {
+        self.state.oneseq_xsh_rs()
+    }
+
+    polyfill_next_f32_next_f64_from_fn!(
+        pub fn next_f32, next_f64(Self::next_u32 = u32);
+    );
 }
 
 impl RngCore for Pcg32 {
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        let mut chunksmut = dest.chunks_exact_mut(4);
-        for chunk in chunksmut.by_ref() {
-            let next = self.default_advance();
-            let bytes = next.to_le_bytes();
-            chunk.copy_from_slice(&bytes);
-        }
-        let a = chunksmut.into_remainder();
-        if !a.is_empty() {
-            let next = self.default_advance();
-            let bytes = next.to_le_bytes();
-            a.copy_from_slice(&bytes[0..a.len()]);
-        }
+        polyfill_fill_bytes_u32(Self::default_advance)(self, dest);
     }
 
     #[inline]

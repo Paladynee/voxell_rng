@@ -1,6 +1,6 @@
-use crate::getrandom::GetRandom;
+use crate::polyfill_next_f32_next_f64_from_fn;
 
-use super::SplitMix64;
+use super::{polyfill::polyfill_fill_bytes_u64, SplitMix64};
 use rand_core::RngCore;
 
 /// cheap and dirty random numbers
@@ -16,20 +16,9 @@ impl Default for XorShift128 {
     #[inline]
     #[track_caller]
     fn default() -> Self {
-        let seed = [u64::get_random().unwrap(), u64::get_random().unwrap()];
+        let mut rand = SplitMix64::default();
+        let seed = [rand.mix(), rand.mix()];
         Self::wrap(seed)
-    }
-}
-
-impl Iterator for XorShift128 {
-    type Item = u32;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.next_u32() {
-            0 => None,
-            x => Some(x),
-        }
     }
 }
 
@@ -37,24 +26,7 @@ impl RngCore for XorShift128 {
     /// Fill `dest` with random data.
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        if dest.is_empty() {
-            return;
-        }
-
-        let mut byte_iterator = dest.chunks_exact_mut(8);
-
-        for slice in byte_iterator.by_ref() {
-            let next = self.next_u64();
-            let next_bytes = next.to_le_bytes();
-            slice.copy_from_slice(next_bytes.as_slice());
-        }
-
-        let remainder = byte_iterator.into_remainder();
-        if !remainder.is_empty() {
-            let next = self.next_u64();
-            let next_bytes = next.to_le_bytes();
-            remainder.copy_from_slice(&next_bytes[..remainder.len()]);
-        }
+        polyfill_fill_bytes_u64(Self::next_u64)(self, dest);
     }
 
     /// Return the next random `u32`.
@@ -66,19 +38,7 @@ impl RngCore for XorShift128 {
     /// Return the next random `u64`.
     #[inline]
     fn next_u64(&mut self) -> u64 {
-        Self::step(&mut self.state)
-    }
-}
-
-impl From<[u64; 2]> for XorShift128 {
-    /// warning! this will [`wrap`] the value
-    ///
-    /// [`wrap`]: XorShift128::wrap
-    ///
-    /// wrapping a 0 value will cause the RNG to always yield 0!
-    #[inline]
-    fn from(seed: [u64; 2]) -> Self {
-        Self::wrap(seed)
+        self.advance()
     }
 }
 
@@ -100,12 +60,9 @@ impl XorShift128 {
         Self { state: seed }
     }
 
-    /// the resulting f32 will be between `[0, 1)`
-    /// (0 inclusive, 1 exclusive)
-    #[inline]
-    pub fn next_f32(&mut self) -> f32 {
-        self.next_u32() as f32 / u32::MAX as f32
-    }
+    polyfill_next_f32_next_f64_from_fn!(
+        pub fn next_f32, next_f64(Self::advance = u64);
+    );
 
     /// get the internal state of the RNG without mutating it
     #[inline]
@@ -128,14 +85,31 @@ impl XorShift128 {
     }
 
     #[inline]
-    const fn step(x: &mut [u64; 2]) -> u64 {
-        let mut t = x[0];
-        let s = x[1];
-        x[0] = s;
-        t ^= t << 23;
-        t ^= t >> 18;
-        t ^= s ^ (s >> 5);
-        x[1] = t;
-        t.wrapping_add(s)
+    const fn advance(&mut self) -> u64 {
+        xorshift128_step(&mut self.state)
+    }
+}
+
+#[inline]
+pub const fn xorshift128_step(x: &mut [u64; 2]) -> u64 {
+    let mut t = x[0];
+    let s = x[1];
+    x[0] = s;
+    t ^= t << 23;
+    t ^= t >> 18;
+    t ^= s ^ (s >> 5);
+    x[1] = t;
+    t.wrapping_add(s)
+}
+
+impl Iterator for XorShift128 {
+    type Item = u32;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_u32() {
+            0 => None,
+            x => Some(x),
+        }
     }
 }

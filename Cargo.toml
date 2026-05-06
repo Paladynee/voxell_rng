@@ -10,6 +10,10 @@ readme = "README.md"
 repository = "https://github.com/paladynee/voxell_rng"
 version = "0.6.0"
 
+[features]
+default = []
+std = []
+
 [profile.release]
 codegen-units = 1
 debug = false
@@ -44,7 +48,6 @@ error_impl_error = "warn"
 format_push_string = "warn"
 get_unwrap = "warn"
 if_then_some_else_none = "warn"
-impl_trait_in_params = "warn"
 lossy_float_literal = "warn"
 missing_assert_message = "warn"
 missing_asserts_for_indexing = "warn"
@@ -78,6 +81,7 @@ cast_possible_truncation = "allow"
 cast_precision_loss = "allow"
 float_cmp = "allow"
 ignored_unit_patterns = "allow"
+impl_trait_in_params = "allow"
 redundant_closure_for_method_calls = "allow"
 similar_names = "allow"
 std_instead_of_alloc = "allow"

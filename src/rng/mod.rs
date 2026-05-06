@@ -1,8 +1,14 @@
+/// Polyfillings for custom RNG implementations.
+pub mod polyfill;
+
 mod pcg_128;
 mod pcg_16;
 mod pcg_32;
 mod pcg_64;
 mod pcg_8;
+
+/// Second implementation of the PCG family.
+mod pcgv2;
 
 pub use pcg_128::Pcg128;
 pub use pcg_16::Pcg16;
@@ -35,7 +41,6 @@ pub mod pcg_advanced {
         pub use super::super::pcg_128::*;
     }
 }
-
 
 mod splitmix64;
 mod xoroshiro128;

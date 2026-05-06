@@ -12,6 +12,9 @@ use core::ptr;
 use rand_core::RngCore;
 
 use crate::branch_rng::BranchRng;
+use crate::polyfill_next_f32_next_f64_from_fn;
+
+use super::polyfill::polyfill_fill_bytes_u16;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Pcg16 {
@@ -40,46 +43,23 @@ impl RngCore for Pcg16 {
     /// Fill `dest` with random data.
     #[inline]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        if dest.is_empty() {
-            return;
-        }
-
-        let mut byte_iterator = dest.chunks_exact_mut(2);
-
-        for slice in byte_iterator.by_ref() {
-            let next = self.default_advance();
-            let next_bytes = next.to_le_bytes();
-            slice.copy_from_slice(next_bytes.as_slice());
-        }
-
-        let remainder = byte_iterator.into_remainder();
-        if !remainder.is_empty() {
-            let next = self.default_advance();
-            let next_bytes = next.to_le_bytes();
-            remainder.copy_from_slice(&next_bytes[..remainder.len()]);
-        }
+        polyfill_fill_bytes_u16(Self::default_advance)(self, dest);
     }
 
     /// Return the next random `u32`.
     #[inline]
     fn next_u32(&mut self) -> u32 {
         let mut buf: [u8; 4] = [0; 4];
-        for chunk in buf.chunks_exact_mut(2) {
-            let next = self.default_advance().to_le_bytes();
-            chunk.copy_from_slice(&next);
-        }
-        u32::from_le_bytes(buf)
+        <Self as RngCore>::fill_bytes(self, &mut buf);
+        u32::from_ne_bytes(buf)
     }
 
     /// Return the next random `u64`.
     #[inline]
     fn next_u64(&mut self) -> u64 {
         let mut buf: [u8; 8] = [0; 8];
-        for chunk in buf.chunks_exact_mut(2) {
-            let next = self.default_advance().to_le_bytes();
-            chunk.copy_from_slice(&next);
-        }
-        u64::from_le_bytes(buf)
+        <Self as RngCore>::fill_bytes(self, &mut buf);
+        u64::from_ne_bytes(buf)
     }
 }
 
@@ -95,6 +75,15 @@ impl Pcg16 {
     pub const fn default_advance(&mut self) -> u16 {
         self.state.oneseq_rxs_m_xs()
     }
+
+    #[inline]
+    pub const fn default_small_advance(&mut self) -> u8 {
+        self.state.oneseq_xsh_rs()
+    }
+
+    polyfill_next_f32_next_f64_from_fn!(
+        pub fn next_f32, next_f64(Self::next_u32 = u32);
+    );
 }
 
 #[derive(Clone, PartialEq, Eq)]

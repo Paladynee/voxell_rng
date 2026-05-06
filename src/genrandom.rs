@@ -1,8 +1,7 @@
 //! This module provides a simple way to generate random numbers using the `getrandom` crate.
-//! I will call this Magic since the entropy comes from the underlying OS in runtime.
 
 /// A trait for types that can be magically seeded using runtime entropy.
-pub trait GetRandom: Sized {
+pub trait GenRandom: Sized {
     /// Create a new instance of the type using OS entropy.
     ///
     /// Invoking this method every time you're generating a number is not a great idea for performance.
@@ -19,7 +18,7 @@ macro_rules! impl_trait_for_primitive_types {
             $(
                 [!set! #current_type = [!ident! $current_type]]
 
-                impl GetRandom for $current_type {
+                impl GenRandom for $current_type {
                     #[doc = [!string! "Create a new [`" #current_type "`] using OS entropy.\n\n"]]
                     #[doc = "Invoking this method every time you're generating a number is not a great idea for performance.\n\n"]
                     #[doc = "# Errors\n\n"]
@@ -44,7 +43,7 @@ macro_rules! impl_trait_for_floats {
             $(
                 [!set! #current_type = [!ident! $current_type]]
 
-                impl GetRandom for $current_type {
+                impl GenRandom for $current_type {
                     #[doc = [!string! "Create a new [`" #current_type "`] using OS entropy.\n\n"]]
                     #[doc = "Invoking this method every time you're generating a number is not a great idea for performance.\n\n"]
                     #[doc = "The resulting number will be between 0 and 1.\n\n"]
